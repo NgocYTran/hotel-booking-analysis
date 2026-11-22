@@ -48,12 +48,15 @@ Four columns had missing values. I looked at each one before deciding how to han
 
 | Column | Missing | What I found | Decision |
 |---|---:|---|---|
-| `children` | 4 | All 4 bookings had 2–3 adults and no babies. | Filled with 0, assuming no children were recorded because there were none. |
-| `country` | 488 | The missing values were spread across both hotels and several market segments, with no clear pattern. | Filled with `"Unknown"` so these bookings stay in the analysis without guessing a country. |
-| `agent` | 16,340 | Most were Direct (7,625) or Corporate (5,543) bookings, which often don't involve a travel agent. However, 3,167 came through the TA/TO channel. | Left as missing. An agent ID can't be inferred, and filling with a placeholder could look like a real ID. |
-| `company` | 112,593 | About 94% of bookings had no company ID. Most Online TA, Offline TA/TO, Groups, and Direct bookings had none, while most Aviation and Corporate bookings did. | Left as missing. A missing value most likely means the booking wasn't made through a company. |
+| `children` | 4 | All 4 bookings had 2–3 adults and no babies. They make up only 0.0034% of the dataset. | Filled with 0. With so few rows involved, this choice has very little effect on the analysis. |
+| `country` | 488 | The missing values were spread across both hotels and several market segments. The real country can't be determined. | Filled with `"Unknown"` so these bookings stay in the analysis without guessing a country. |
+| `agent` | 16,340 | Most were Direct (7,625) or Corporate (5,543) bookings, suggesting some bookings don't involve a travel agent. However, 3,167 came through the TA/TO channel, including 165 marked as Direct in `market_segment`. | Left as missing, because the agent can't be reliably inferred (see below). |
+| `company` | 112,593 | 94.31% of bookings had no company ID. Missingness depends on the market segment. Most Corporate and Aviation bookings have a company ID, while most Direct and Online TA bookings don't. | Left as missing. Company information seems to be recorded mainly for business-related bookings, but I couldn't confirm what a missing value means. |
 
-I also checked how agents and companies relate to each other. Only 217 bookings had both an agent and a company ID. Most companies worked with only one agent. Company 281 was the exception and worked with 4.
+I checked whether one column could fill in the other. I decided it couldn't, for two reasons:
+
+1. **They represent different roles.** `agent` identifies a travel agency, and `company` identifies an associated company, so they can't be treated as the same entity.
+2. **The relationship is many-to-many.** Agent 9 is linked to 9 different companies, and company 281 is linked to 4 different agents. Only 217 bookings have both an agent and a company ID.
 
 ### Duplicate Records
 
@@ -69,18 +72,18 @@ The raw dataset had **0 fully duplicated rows**. This is because every row has i
 | Canceled | 22 |
 | No-Show | 13 |
 
-All 680 checked-out zero-night bookings had an ADR of 0, and their reservation status date was the same as the arrival date. They might be same-day stays or system entries, but the data doesn't say which. I kept them and left them out of the estimated revenue calculation.
+I first thought the 680 checked-out zero-night bookings were complimentary stays because all of them had an ADR of 0. However, only 14 were in the Complementary segment, so that idea didn't hold up. All 680 had a reservation status date that matched the scheduled arrival date, which suggests they could be same-day reservations. There wasn't enough evidence to treat them as errors, so I kept them. They are left out of the estimated revenue calculation, and I'll handle them separately in any analysis of overnight stays.
 
-**Zero-guest bookings:** 180 bookings had 0 adults, 0 children, and 0 babies. Most had an ADR of 0, but 31 were checked out with an ADR above 0. A booking can't really have zero guests, but I couldn't tell what the correct values should be, so I kept these rows unchanged.
+**Zero-guest bookings:** 180 bookings had 0 adults, 0 children, and 0 babies. A canceled or no-show booking could be missing guest details, but a completed stay with zero guests looks like a data entry error or an administrative booking. 31 of these were checked out with an ADR above 0. The actual guest counts can't be determined, so I didn't fill in any values. I kept the rows and will leave them out of guest-related analysis where needed.
 
 ### Negative and Zero ADR
 
 - **Negative ADR:** Only 1 booking had a negative ADR (-6.38, Check-Out). A negative room rate doesn't make sense, so I kept the row but left it out of the estimated revenue calculation.
-- **Zero ADR:** 1,959 bookings had an ADR of 0. The largest group was Complementary bookings (680), where a free stay is expected. Of the checked-out bookings with at least one night and an ADR of 0, **492 were not Complementary**. I couldn't explain these, so I flagged them instead of removing them.
+- **Zero ADR:** 1,959 bookings had an ADR of 0. I focused on the **1,066 checked-out bookings with at least one night**. 574 of them (53.8%) were in the Complementary segment, which supports the idea that these were genuinely free stays. The other **492** couldn't be explained, but there wasn't enough evidence to call them errors. I kept them and flagged them.
 
 ### ADR Outliers (IQR Method)
 
-ADR ranged from -6.38 to 5,400, with a mean of 101.83 and a median of 94.58. I used the interquartile range (IQR) method to find unusual values:
+ADR ranged from -6.38 to 5,400, with a mean of 101.83 and a median of 94.58. I used the interquartile range (IQR) method to find outliers:
 
 | Measure | Value |
 |---|---:|
