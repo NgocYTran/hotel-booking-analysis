@@ -9,7 +9,7 @@ This project looks at hotel booking data for a city hotel and a resort hotel. I 
 - How does the average daily rate (ADR) change across hotels, room types, and months?
 - Which market segments bring in the most estimated room revenue?
 
-So far I have finished the data quality assessment, cleaning, and preparation stage. The exploratory analysis, Tableau dashboard, and business recommendations are still to come.
+So far, I have finished the data quality assessment, cleaning, and preparation stage. The exploratory analysis, Tableau dashboard, and business recommendations are still in progress.
 
 ## 2. Dataset Overview
 
@@ -50,7 +50,7 @@ Four columns had missing values. I looked at each one before deciding how to han
 |---|---:|---|---|
 | `children` | 4 | All 4 bookings had 2–3 adults and no babies. They make up only 0.0034% of the dataset. | Filled with 0. With so few rows involved, this choice has very little effect on the analysis. |
 | `country` | 488 | The missing values were spread across both hotels and several market segments. The real country can't be determined. | Filled with `"Unknown"` so these bookings stay in the analysis without guessing a country. |
-| `agent` | 16,340 | Most were Direct (7,625) or Corporate (5,543) bookings, suggesting some bookings don't involve a travel agent. However, 3,167 came through the TA/TO channel, including 165 marked as Direct in `market_segment`. | Left as missing, because the agent can't be reliably inferred (see below). |
+| `agent` | 16,340 | Most were Direct (7,625) or Corporate (5,543) bookings, suggesting some bookings don't involve a travel agent. However, 3,167 came through the TA/TO channel, including 165 marked as Direct in `market_segment`. | Left as missing because the agent can't be reliably inferred (see below). |
 | `company` | 112,593 | 94.31% of bookings had no company ID. Missingness depends on the market segment. Most Corporate and Aviation bookings have a company ID, while most Direct and Online TA bookings don't. | Left as missing. Company information seems to be recorded mainly for business-related bookings, but I couldn't confirm what a missing value means. |
 
 I checked whether one column could fill in the other. I decided it couldn't, for two reasons:
@@ -60,7 +60,8 @@ I checked whether one column could fill in the other. I decided it couldn't, for
 
 ### Duplicate Records
 
-The raw dataset had **0 fully duplicated rows**. This is because every row has its own name, email, phone number, and credit card value. Once those columns were removed, many rows became identical (see [Final Dataset Validation](#6-final-dataset-validation)).
+The raw dataset contained no duplicate rows, so each row represents a separate booking
+(see [Final Dataset Validation](#6-final-dataset-validation)).
 
 ### Zero-Night and Zero-Guest Bookings
 
@@ -118,11 +119,14 @@ I dropped `name`, `email`, `phone-number`, and `credit_card`. These columns aren
 
 | Column | How it was created | Purpose |
 |---|---|---|
+| `booking_id` | Row number from 1 to 119,390, added after cleaning. No rows were removed or reordered, so it follows the original file order. | Gives each booking its own ID in the cleaned file |
 | `scheduled_arrival_date` | Combined arrival year, month, and day into one date | Makes time-based analysis and date comparisons easier |
 | `total_guests` | `adults + children + babies` | Finds zero-guest bookings and measures group size |
 | `total_nights` | `stays_in_weekend_nights + stays_in_week_nights` | Measures length of stay and finds zero-night bookings |
 | `date_difference` | Days between `reservation_status_date` and `scheduled_arrival_date` | Checks whether status dates make sense for each reservation status |
 | `estimated_room_revenue` | `adr × total_nights` | Gives a rough revenue estimate for completed stays |
+
+**Why I added `booking_id`:** The source data has no booking ID. My duplicate check at the start found no duplicate rows, which confirmed that each row is a separate booking. After cleaning, I added `booking_id` so each booking can be identified and counted in later analysis and in Tableau.
 
 `estimated_room_revenue` is only calculated for bookings that are **checked out**, have **at least one night**, and have an **ADR of 0 or higher**. All other rows are left blank. Canceled bookings and No-Shows didn't produce a completed stay, and zero-night or negative-ADR bookings would give misleading values. This leaves **74,485** bookings with an estimated revenue value. The median is 260.64 and the maximum is 7,590.
 
@@ -138,7 +142,7 @@ Instead of deleting questionable rows, I created three True/False flags. This ke
 
 ## 6. Final Dataset Validation
 
-- **Final shape:** 119,390 rows and 40 columns. No rows were removed. 4 customer columns were dropped and 8 new columns were added.
+- **Final shape:** 119,390 rows and 41 columns. No rows were removed. 4 customer columns were dropped, and 9 new columns were added.
 - **Remaining missing values (intentional):**
 
 | Column | Missing | Reason |
@@ -147,13 +151,12 @@ Instead of deleting questionable rows, I created three True/False flags. This ke
 | `company` | 112,593 | No company recorded for the booking |
 | `estimated_room_revenue` | 44,905 | Only calculated for checked-out bookings with at least one night and ADR ≥ 0 |
 
-- **Apparent duplicates:** After the customer columns were removed, **31,994 rows** were identical to another row. I kept them because the dataset has no booking ID, so there's no reliable way to tell a true duplicate from two separate bookings with the same details, such as several identical rooms booked for one group. Removing them could undercount bookings and estimated revenue.
 - **Data types:** `reservation_status_date` and `scheduled_arrival_date` were converted to dates, and the three flags are stored as True/False.
-- **Export:** The cleaned data was saved as `dataset/hotel_booking_cleaned.csv`. I read the file back in and confirmed it has the same shape (119,390 × 40) and column names as the cleaned DataFrame.
+- **Export:** The cleaned data was saved as `dataset/hotel_booking_cleaned.csv`. I read the file back in and confirmed it has the same shape (119,390 × 41) and column names as the cleaned DataFrame.
 
 ## 7. Data Limitations
 
-- **No unique booking ID.** I can't confirm whether the 31,994 apparent duplicates are repeated entries or separate bookings. If some are true duplicates, booking counts and revenue will be somewhat overstated.
+- **No original booking ID.** The source data has no booking ID. booking_id is a row number I added, so it can't be matched to the hotels' own records.
 - **Estimated room revenue is not actual revenue.** It is ADR multiplied by the number of nights. It doesn't include meals, extra charges, discounts, taxes, or cancellation fees, and it assumes the ADR applied to every night of the stay.
 - **Unusual records aren't necessarily wrong.** High ADR values, zero-ADR stays, zero-night stays, and zero-guest bookings could be real situations or data entry problems. I flagged or kept them instead of deciding which is true.
 - **Assumptions about missing values.** Missing `children` values were treated as 0, and missing `country` values were labeled `"Unknown"`. Missing `agent` and `company` values are treated as "none recorded," but some may simply be missing data. This is especially true for the 3,167 TA/TO bookings with no agent.
@@ -165,7 +168,7 @@ Instead of deleting questionable rows, I created three True/False flags. This ke
 
 ```
 ├── dataset/
-│   └── hotel_booking_cleaned.csv     # Cleaned dataset (119,390 rows × 40 columns)
+│   └── hotel_booking_cleaned.csv     # Cleaned dataset (119,390 rows × 41 columns)
 ├── notebooks/
 │   └── 01_data_cleaning.ipynb        # Data quality assessment, cleaning, and preparation
 └── README.md
